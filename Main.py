@@ -1,19 +1,14 @@
+import os
 from flask import Flask, request, jsonify
 import yt_dlp
-import os
 
-app = Flask(_name_)
+app = Flask("ZyncxAPI")
 
 @app.route('/analizar', methods=['POST'])
 def analizar():
     try:
-        data = request.get_json()
-        url = data.get('url')
-        if not url:
-            return jsonify({"status": "error", "msj": "No URL"}), 400
-
-        ydl_opts = {'quiet': True, 'noplaylist': True}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        url = request.get_json().get('url')
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             return jsonify({
                 "status": "ok",
@@ -24,6 +19,5 @@ def analizar():
     except Exception as e:
         return jsonify({"status": "error", "msj": str(e)}), 400
 
-if _name_ == '_main_':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+if _name_ == "_main_":
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
