@@ -10,7 +10,7 @@ def analizar():
         data = request.get_json()
         url = data.get('url')
         if not url:
-            return jsonify({"status": "error", "msj": "No URL provided"}), 400
+            return jsonify({"status": "error", "msj": "No URL"}), 400
 
         ydl_opts = {'quiet': True, 'noplaylist': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -25,6 +25,5 @@ def analizar():
         return jsonify({"status": "error", "msj": str(e)}), 400
 
 if _name_ == '_main_':
-    # Render usa el puerto 10000 por defecto
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
