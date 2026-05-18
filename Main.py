@@ -16,7 +16,6 @@ CORS(app, resources={
 
 @app.route('/analizar', methods=['POST', 'OPTIONS'])
 def analizar():
-    # Si el navegador envía la verificación previa (OPTIONS), respondemos OK con estado 200 de inmediato
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -31,27 +30,33 @@ def analizar():
         if not video_url:
             return jsonify({"status": "error", "msj": "La URL está vacía"}), 400
         
-        # Filtro de formatos inteligente para tráfico multimedia masivo
         format_str = 'bestaudio/best' if solo_audio else 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
         
         ydl_opts = {
             'quiet': True, 
             'noplaylist': True,
             'format': format_str,
-            # Cabeceras de camuflaje para evitar bloqueos por IP compartida en la nube
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-            },
-            # Parámetro crítico para que TikTok no rechace las peticiones de Render
+            # FUERZA A YT-DLP A USAR LOS CLIENTES DE ANDROID/IOS
+            # Esto se salta el bloqueo de "Sign in to confirm you're not a bot" en Render
+            'youtube_include_dash_manifest': False,
             'extractor_args': {
-                'tiktok': {'app_version': '20.2.1', 'manifest_app_version': '20.2.1'}
+                'youtube': {
+                    'player_client': ['android', 'ios'],
+                    'skip': ['webpage', 'authcheck']
+                },
+                'tiktok': {
+                    'app_version': '20.2.1', 
+                    'manifest_app_version': '20.2.1'
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Extraemos metadatos en milisegundos sin sobrecargar el servidor
             info = ydl.extract_info(video_url, download=False)
             
             return jsonify({
@@ -64,9 +69,9 @@ def analizar():
             })
 
     except Exception as e:
+        # Si ocurre un error, devolvemos el mensaje exacto para saber qué pasó
         return jsonify({"status": "error", "msj": str(e)}), 400
 
 if __name__ == "__main__":
-    # Configuración dinámica del puerto asignado por Render
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
