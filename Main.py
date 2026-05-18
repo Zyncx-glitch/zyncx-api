@@ -3,9 +3,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yt_dlp
 
-app = Flask("Zyncx_Engine")
+app = Flask("Zyncx_Media_Engine")
 
-# Liberación absoluta de CORS para tu dominio de GitHub Pages
+# Permiso exclusivo para tu dominio de GitHub Pages
 CORS(app, resources={
     r"/*": {
         "origins": ["https://zyncx-glitch.github.io"],
@@ -16,6 +16,7 @@ CORS(app, resources={
 
 @app.route('/analizar', methods=['POST', 'OPTIONS'])
 def analizar():
+    # Responder de inmediato al preflight del navegador
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -24,52 +25,53 @@ def analizar():
         if not data:
             return jsonify({"status": "error", "msj": "No se recibieron datos JSON"}), 400
 
-        video_url = data.get('url', '').strip()
+        media_url = data.get('url', '').strip()
         solo_audio = data.get('solo_audio', False)
         
-        if not video_url:
+        if not media_url:
             return jsonify({"status": "error", "msj": "La URL está vacía"}), 400
         
-        format_str = 'bestaudio/best' if solo_audio else 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        # Configuración de formatos óptimos para Redes Sociales
+        # TikTok/Instagram ya entregan el video en MP4 optimizado para celulares
+        format_str = 'bestaudio/best' if solo_audio else 'best[ext=mp4]/best'
         
         ydl_opts = {
             'quiet': True, 
             'noplaylist': True,
             'format': format_str,
-            # FUERZA A YT-DLP A USAR LOS CLIENTES DE ANDROID/IOS
-            # Esto se salta el bloqueo de "Sign in to confirm you're not a bot" en Render
-            'youtube_include_dash_manifest': False,
+            # Cabeceras móviles para camuflar el servidor de Render
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            },
+            # Argumentos críticos para saltar bloqueos específicos de TikTok
             'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'ios'],
-                    'skip': ['webpage', 'authcheck']
-                },
                 'tiktok': {
                     'app_version': '20.2.1', 
                     'manifest_app_version': '20.2.1'
                 }
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
             }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
+            # Extrae la información directa del servidor de TikTok/Instagram
+            info = ydl.extract_info(media_url, download=False)
             
+            # Detectar qué plataforma es para personalizar la respuesta
+            extractor = info.get('extractor_key', 'Unknown').lower()
+            plataforma_nombre = "TikTok" if "tiktok" in extractor else "Instagram" if "instagram" in extractor else "Zyncx Media"
+
             return jsonify({
                 "status": "ok",
-                "titulo": info.get('title', 'Zyncx Media File'),
+                "titulo": info.get('title', f'Video de {plataforma_nombre}'),
                 "url_descarga": info.get('url'),
                 "miniatura": info.get('thumbnail', 'https://via.placeholder.com/160x90?text=Zyncx+Media'),
-                "duracion": info.get('duration'),
-                "plataforma": info.get('extractor_key', 'Unknown')
+                "plataforma": plataforma_nombre
             })
 
     except Exception as e:
-        # Si ocurre un error, devolvemos el mensaje exacto para saber qué pasó
+        # Si la plataforma da error (ej: video privado), lo reportamos limpio
         return jsonify({"status": "error", "msj": str(e)}), 400
 
 if __name__ == "__main__":
