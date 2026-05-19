@@ -49,31 +49,3 @@ def analizar():
             'extractor_args': {
                 'tiktok': {
                     'app_version': '20.2.1', 
-                    'manifest_app_version': '20.2.1'
-                }
-            }
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Extrae la información directa del servidor de TikTok/Instagram
-            info = ydl.extract_info(media_url, download=False)
-            
-            # Detectar qué plataforma es para personalizar la respuesta
-            extractor = info.get('extractor_key', 'Unknown').lower()
-            plataforma_nombre = "TikTok" if "tiktok" in extractor else "Instagram" if "instagram" in extractor else "Zyncx Media"
-
-            return jsonify({
-                "status": "ok",
-                "titulo": info.get('title', f'Video de {plataforma_nombre}'),
-                "url_descarga": info.get('url'),
-                "miniatura": info.get('thumbnail', 'https://via.placeholder.com/160x90?text=Zyncx+Media'),
-                "plataforma": plataforma_nombre
-            })
-
-    except Exception as e:
-        # Si la plataforma da error (ej: video privado), lo reportamos limpio
-        return jsonify({"status": "error", "msj": str(e)}), 400
-
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
